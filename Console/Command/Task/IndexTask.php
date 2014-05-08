@@ -30,11 +30,11 @@ class IndexTask extends Shell {
                 $models = explode(',', $models);
             }
 
+
             foreach ($models as $k => $model) {
                 if (strtolower($model) != 'searchindex') {
-                    App::uses($model, 'Model');
-                    if (class_exists($model)) {
-                        $tmpModel = new $model();
+                    $tmpModel = ClassRegistry::init($model);
+                    if ($tmpModel) {
                         if (isset($tmpModel->actsAs) && is_array($tmpModel->actsAs) && isset($tmpModel->actsAs['Searchable.Searchable'])) {
                              $this->modelCache[$model] = $tmpModel;
                              $this->modelNames[$k] = $model;
@@ -66,9 +66,8 @@ class IndexTask extends Shell {
         for ($i = 0; $i < $count; $i++) {
             $model = $this->_modelName($this->tables[$i]);
             if (strtolower($model) != 'searchindex') {
-                App::uses($model, 'Model');
-                if (class_exists($model)) {
-                    $tmpModel = new $model();
+                $tmpModel = ClassRegistry::init($model);
+                if ($tmpModel) {
                     if (isset($tmpModel->actsAs) && is_array($tmpModel->actsAs) && isset($tmpModel->actsAs['Searchable.Searchable'])) {
                         $this->modelCache[$model] = $tmpModel;
                         $tableIndex++;
@@ -99,18 +98,19 @@ class IndexTask extends Shell {
     }
 
     private function indexModel($model) {
-        $results = $this->modelCache[$model]->find('all', array(
+        $Model = $this->modelCache[$model]; 
+        $results = $Model->find('all', array(
             'recursive' => 0
         ));
         $this->out(__('Creating new indices for %s...', $model));
         $this->ProgressBar->start(count($results));
 
         foreach ($results as $result) {
-            $this->modelCache[$model]->id = $result[$model]['id'];
-            $data = $result[$model];
+            $Model->id = $result[$Model->alias]['id'];
+            $data = $result[$Model->alias];
             $data['modified'] = false;
             unset($data['id']);
-            $this->modelCache[$model]->save($data);
+            $Model->save($data);
             $this->ProgressBar->next();
         }
 
